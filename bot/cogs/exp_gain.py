@@ -4,7 +4,7 @@ from discord.ext import commands
 import time
 import asyncio
 
-from bot.utils.lock import LockManager
+from utils.lock import LockManager
 
 class ExpGain(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -24,7 +24,7 @@ class ExpGain(commands.Cog):
             await asyncio.sleep(1)
 
     async def cog_load(self):
-         self.level_json = await self.bot.FILE("level.json").read()
+         self.level_json = await self.bot.json("level.json").read()
          self.is_ready = True
 
     async def _lock(self, user_id):

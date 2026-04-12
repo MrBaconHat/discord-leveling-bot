@@ -4,10 +4,10 @@ import discord
 from discord.ext import commands
 
 # ========== BOT UTILITIES ==========
-from bot.utils.env import Env
-from bot.utils.file import JsonFile, TomlFile
+from utils.env import Env
+from utils.file import JsonFile, TomlFile
 
-class BotConfig:
+class LevelConfig:
     def __init__(self):
         raw_config = TomlFile("level.toml").read_sync()
         print(raw_config)
@@ -27,8 +27,9 @@ class MyBot(commands.Bot):
         )
         
         self.ENV = Env()
-        self.CONFIG = BotConfig()
-        self.FILE = JsonFile
+        self.CONFIG = LevelConfig()
+        self.json = JsonFile
+        self.toml = TomlFile
 
     async def load_cogs(self):
         print("Loading cogs...")
