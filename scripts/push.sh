@@ -34,7 +34,7 @@ fi
 # Handle first push if branch doesn't exist on remote
 if ! git ls-remote --exit-code --heads origin "$CURRENT_BRANCH" >/dev/null 2>&1; then
     echo "First push for branch '$CURRENT_BRANCH'..."
-    git push -u origin "$CURRENT_BRANCH" --force
+    git push -u origin "$CURRENT_BRANCH"
 else
     echo "📤 Pushing changes to GitHub..."
     git push origin "$CURRENT_BRANCH" --force
