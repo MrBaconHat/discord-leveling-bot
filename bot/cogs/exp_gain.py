@@ -1,66 +1,79 @@
-import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 import time
-import asyncio
+import traceback
 
-from utils.lock import LockManager
 
-class ExpGain(commands.Cog):
+class ExpHandler(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.__lock = LockManager()
-        self.is_ready: bool = False
 
-        self.level_json = None
-        
-        # User cooldown between each message
-        self.user_cooldown = {}
+        self.level = self.bot.level
 
-    async def wait_until_ready(self):
-        while True:
-            if self.is_ready:
-                break
-            await asyncio.sleep(1)
+        # Default config in case the config file is empty
+        self.level_config: dict[str, int] = {
+            "starter_xp": 100,
+            "exp_per_msg": 10,
+            "cooldown_between_msgs": 20
+        }
 
-    async def cog_load(self):
-         self.level_json = await self.bot.json("level.json").read()
-         self.is_ready = True
+        # Cooldowns for each user
+        self.cooldowns: dict[str, int] = {}
 
-    async def _lock(self, user_id):
-        return await self.__lock.get_lock(f"exp_gain:{user_id}")
+    async def cog_load(self): self.config_updater.start()
+    async def cog_unload(self): self.config_updater.cancel()
 
-    async def get_user_exp(self, user_id: int):
-        return await self.level_json.read(str(user_id), 0)
+    @tasks.loop(seconds=10)
+    async def config_updater(self):
+        config = self.bot.config
+        level_config = await config.get("levels")
+        if level_config:
+            self.level_config.update(level_config)
 
     @commands.Cog.listener()
-    async def on_message(self, message: discord.Message):
-        await self.wait_until_ready()
+    async def on_message(self, message):
+        # Ignore messages from bots
+        if message.author.bot:
+            return
 
-        async with await self._lock(message.author.id):
-            # Ignore messages from bots
-            if message.author.bot:
-                return
+        # Get user id in string
+        user_id = str(message.author.id)
 
-            # Ignore messages in DMs
-            if not message.guild:
-                return
+        # Check if user is on cooldown
+        if (
+            user_id in self.cooldowns
+            and self.cooldowns[user_id] > time.time()
+        ):
+            # If user is on cooldown, ignore the message
+            return
 
-            # Ignore messages in channels that are not allowed
-            # todo
-            if False:
-                return
+        # set a default path where user's data will be stored
+        data_path = f"{message.guild.id}.{user_id}"
 
-            # Get user cooldown
-            user_cooldown_guild =  self.user_cooldown.setdefault(message.guild.id, {})
-            user_cooldown = user_cooldown_guild.setdefault(message.author.id, 0)
+        # Get user's current level and exp
+        current_level = await self.level.get(f"{data_path}.level", self.level_config["starter_xp"])
+        current_exp = await self.level.get(f"{data_path}.xp", 0)
 
-            sent_at_ts = message.created_at.timestamp()
+        # Calculate the exp goal for the next level
+        exp_goal = self.level_config["starter_xp"] * current_level
 
-            if user_cooldown > sent_at_ts:
-                return
+        # Calculate the new exp and level
+        new_exp = current_exp + self.level_config["exp_per_msg"]
+        new_level = None
 
-            print("hi")
+        # Check if the user has reached the exp goal
+        if new_exp >= exp_goal:
+            new_exp = new_exp - exp_goal
+            new_level = current_level + 1
+
+        # Update the level and exp
+        await self.level.set(f"{data_path}.xp", new_exp)
+        if new_level:
+            await self.level.set(f"{data_path}.level", new_level)
+
+        # Set the cooldown
+        self.cooldowns[user_id] = int(time.time() + self.level_config["cooldown_between_msgs"])
+
 
 async def setup(bot: commands.Bot):
-    await bot.add_cog(ExpGain(bot))
+    await bot.add_cog(ExpHandler(bot))
