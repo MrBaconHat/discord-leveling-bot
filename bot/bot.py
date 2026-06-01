@@ -1,60 +1,64 @@
-import os
-
 import discord
 from discord.ext import commands
 
-# ========== BOT UTILITIES ==========
-from utils.env import Env
-from utils.file import JsonFile, TomlFile
+import os
 
-class LevelConfig:
-    def __init__(self):
-        raw_config = TomlFile("level.toml").read_sync()
-        print(raw_config)
-        for key, value in raw_config.items():
-            setattr(self, key, value)
+# NestIO for reading/writing files
+from nestio.env import Env
+from nestio.files import JSON
+from nestio.files import TOML
 
-    def get(self, key: str, default=None):
-        return getattr(self, key, default)
-        
+# Colors
+from colorama import Fore, Style, init
+init(autoreset=True)
+
 
 class MyBot(commands.Bot):
     def __init__(self):
-        intents = discord.Intents.default()
-        intents.message_content = True
-        super().__init__(
-            command_prefix='!', intents=intents
-        )
         
-        self.ENV = Env()
-        self.CONFIG = LevelConfig()
-        self.json = JsonFile
-        self.toml = TomlFile
-
-    async def load_cogs(self):
-        print("Loading cogs...")
-        cogs = os.listdir("bot/cogs")
-        print(cogs)
-        for cog in cogs:
-            print(cog)
-            if cog in ["__init__.py", "__pycache__"]:
-                print("Skipping:", cog)
-                continue 
-
-            try:
-                print("Loading:", cog)
-                await self.load_extension(f"bot.cogs.{cog[:-3]}")
-                print("Loaded:", cog)
-
-            except Exception as e:
-                print("Failed to load:", cog)
-                print(f"Error loading {cog}: {e}")
+        self.__env = Env()
+        self.level = JSON('data/levels.json')
+        self.config = TOML('data/level_config.toml')
         
+        super().__init__(command_prefix='!', intents=discord.Intents.all(), help_command=None)
+
+
     async def setup_hook(self):
-        await self.load_cogs()
+        cogs = os.listdir("bot/cogs")
+        for cog in cogs:
+            
+            if cog.endswith(".py") and not cog.startswith("_"):
+                
+                try:
+                    await self.load_extension(f"bot.cogs.{cog[:-3]}")
+                    print(
+                        Fore.GREEN + Style.BRIGHT +
+                        f"Loaded cog {cog[:-3]}"
+                    )
+                    
+                except Exception as e:
+                    print(
+                        Fore.RED + Style.BRIGHT +
+                        f"Failed to load cog {cog[:-3]}: {e}"
+                    )
 
     async def on_ready(self):
-        print("Successfuly logged in as", self.user)
+        await self.tree.sync()
+        print(
+            Fore.GREEN + Style.BRIGHT +
+            f"Logged in as {self.user.name} ({self.user.id})"
+        )
 
-    async def run_bot(self):
-        await self.start(self.ENV.get("BOT_TOKEN", ""))
+    async def start_bot(self):
+        token = self.__env.get("BOT_TOKEN")
+        if token is None:
+            print(
+                Fore.RED + Style.BRIGHT +
+                "No bot token found in .env file"
+            )
+            return
+
+        await self.start(token)
+
+
+bot = MyBot()
