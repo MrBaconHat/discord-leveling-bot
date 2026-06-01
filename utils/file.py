@@ -9,7 +9,7 @@ import tempfile
 
 from colorama import Fore, Style, init
 
-from bot.utils.lock import LockManager
+from utils.lock import LockManager
 
 init(autoreset=True)
 
