@@ -76,7 +76,7 @@ class ExpCommands(commands.Cog):
         embed.add_field(
             name="📈 Progress",
             value=f"`{bar}` ({progress:.0%})",
-            inline=False
+            inline=True
         )
         embed.set_footer(
             text=f"Requested by {interaction.user.display_name}",
@@ -84,6 +84,46 @@ class ExpCommands(commands.Cog):
         )
 
         await interaction.response.send_message(embed=embed)
+
+
+    @app_commands.command(
+        name="add-exp",
+        description="Adds exp to a user"
+    )
+    @app_commands.describe(
+        user="The user to add exp to",
+        exp="The amount of exp to add"
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def add_exp(self, interaction: discord.Interaction, user: discord.User, exp: int):
+        guild = interaction.guild
+        if user.bot:
+            await interaction.response.send_message(
+                "Bots don't have levels", 
+                ephemeral=True
+            )
+
+        data_path = f"{guild.id}.{user.id}"
+
+        await self.level.set(f"{data_path}.xp", exp)
+        await interaction.response.send_message(
+            f"Added `{exp:,}` exp to {user.mention}", 
+            ephemeral=True
+        )
+
+
+    @app_commands.command(
+        name="reset",
+        description="Reset's server's levels for all users"
+    )
+    @app_commands.checks.has_permissions(administrator=True)
+    async def reset_levels(self, interaction: discord.Interaction):
+        guild = interaction.guild
+        await self.level.set(f"{guild.id}", {})
+        await interaction.response.send_message(
+            "Reset all levels for this server",
+            ephemeral=True
+        )
 
 
 async def setup(bot: commands.Bot):
