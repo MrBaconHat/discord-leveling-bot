@@ -4,6 +4,9 @@ from discord import app_commands
 
 from typing import Optional
 
+# --- Utils -----------------
+from bot.utils.embed import level_up_embed
+
 
 class ExpCommands(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -21,8 +24,7 @@ class ExpCommands(commands.Cog):
 
     @tasks.loop(seconds=10)
     async def config_updater(self):
-        config = self.bot.config
-        level_config = await config.get("levels")
+        level_config = await self.bot.config.get("levels")
         if level_config:
             self.config.update(level_config)
 
@@ -103,9 +105,30 @@ class ExpCommands(commands.Cog):
                 ephemeral=True
             )
 
+        starter_exp = self.config["starter_xp"]
+        
+        current_level = await self.level.get(f"{guild.id}.{user.id}.level", 1)
+        current_exp = await self.level.get(f"{guild.id}.{user.id}.xp", 0)
+
+        level = current_level
+        xp = current_exp + exp
+
+        # Calculate the new level for the user if they level up
+        while xp >= starter_exp * level:
+            xp -= starter_exp * level
+            level += 1
+
         data_path = f"{guild.id}.{user.id}"
 
-        await self.level.set(f"{data_path}.xp", exp)
+        await self.level.set(f"{data_path}.xp", xp)
+        await self.level.set(f"{data_path}.level", level)
+
+        # Indicator for if user has leveled up!
+        if level > current_level:
+            cmd_channel: discord.TextChannel = self.bot.get_channel(interaction.channel_id)
+            if cmd_channel:
+                await cmd_channel.send(embed=level_up_embed(user, level))
+            
         await interaction.response.send_message(
             f"Added `{exp:,}` exp to {user.mention}", 
             ephemeral=True
