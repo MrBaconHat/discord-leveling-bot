@@ -3,6 +3,9 @@ from discord.ext import commands, tasks
 import time
 import traceback
 
+# --- Utils -----------------
+from bot.utils.embed import level_up_embed
+
 
 class ExpHandler(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -70,6 +73,8 @@ class ExpHandler(commands.Cog):
         await self.level.set(f"{data_path}.xp", new_exp)
         if new_level:
             await self.level.set(f"{data_path}.level", new_level)
+            # Send a message if the user has leveled up
+            await message.channel.send(embed=level_up_embed(message.author, new_level))
 
         # Set the cooldown
         self.cooldowns[user_id] = int(time.time() + self.level_config["cooldown_between_msgs"])
