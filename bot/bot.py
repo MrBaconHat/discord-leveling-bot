@@ -12,13 +12,18 @@ from nestio.files import TOML
 from colorama import Fore, Style, init
 init(autoreset=True)
 
+# --- Services -----------------
+from bot.services.level_service import LevelService
+
 
 class MyBot(commands.Bot):
     def __init__(self):
         
         self.__env = Env()
-        self.level = JSON('data/levels.json')
+        
         self.config = TOML('data/level_config.toml')
+
+        self.level_service = LevelService(self)
         
         super().__init__(command_prefix='!', intents=discord.Intents.all(), help_command=None)
 

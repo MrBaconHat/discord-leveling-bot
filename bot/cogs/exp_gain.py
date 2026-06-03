@@ -11,7 +11,7 @@ class ExpHandler(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-        self.level = self.bot.level
+        self.level_service = bot.level_service
 
         # Default config in case the config file is empty
         self.level_config: dict[str, int] = {
@@ -50,31 +50,16 @@ class ExpHandler(commands.Cog):
             # If user is on cooldown, ignore the message
             return
 
-        # set a default path where user's data will be stored
-        data_path = f"{message.guild.id}.{user_id}"
+        # Get the user's current level and exp
+        profile = await self.level_service.get_user(message.guild.id, message.author.id)
 
-        # Get user's current level and exp
-        current_level = await self.level.get(f"{data_path}.level", self.level_config["starter_xp"])
-        current_exp = await self.level.get(f"{data_path}.xp", 0)
-
-        # Calculate the exp goal for the next level
-        exp_goal = self.level_config["starter_xp"] * current_level
-
-        # Calculate the new exp and level
-        new_exp = current_exp + self.level_config["exp_per_msg"]
-        new_level = None
+        # Add exp to the user
+        new_profile = await profile.add_exp(profile.exp_per_msg)
 
         # Check if the user has reached the exp goal
-        if new_exp >= exp_goal:
-            new_exp = new_exp - exp_goal
-            new_level = current_level + 1
-
-        # Update the level and exp
-        await self.level.set(f"{data_path}.xp", new_exp)
-        if new_level:
-            await self.level.set(f"{data_path}.level", new_level)
-            # Send a message if the user has leveled up
-            await message.channel.send(embed=level_up_embed(message.author, new_level))
+        if new_profile.level >= profile.exp_goal:
+            # If the user has reached the exp goal, send a level up message
+            await message.channel.send(embed=level_up_embed(message.author, new_profile.level))
 
         # Set the cooldown
         self.cooldowns[user_id] = int(time.time() + self.level_config["cooldown_between_msgs"])
