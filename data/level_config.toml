@@ -1,4 +1,4 @@
 [levels]
 starter_xp = 320
 exp_per_msg = 10
-cooldown_between_msgs = 5
+cooldown_between_msgs = 3
