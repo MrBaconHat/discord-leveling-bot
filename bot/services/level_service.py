@@ -20,9 +20,9 @@ class LevelService:
         return LevelModel(self, config, data, guild_id, user_id)
 
     async def add_exp(self, guild_id: int, user_id: int, exp: int) -> LevelModel:
-        current_exp = await self.level.set_default(f"{guild_id}.{user_id}.exp", 0)
-        current_level = await self.level.set_default(f"{guild_id}.{user_id}.level", 1)
-
+        current_level = await self.level.get(f"{guild_id}.{user_id}.level", 1)
+        current_exp = await self.level.get(f"{guild_id}.{user_id}.exp", 0)
+        
         starter_exp = await self.config.get("levels.starter_xp", 100)
 
         level = current_level
